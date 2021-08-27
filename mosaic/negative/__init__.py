@@ -1,6 +1,6 @@
 import cv2
 
-from neutral.utils import showImages
+from utils import showImages
 
 
 def mosaic1(img, x, y, h, w, size):

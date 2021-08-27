@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import skimage
 
-from neutral.utils import showImage
+from utils import showImage
 
 
 # region 添加噪音

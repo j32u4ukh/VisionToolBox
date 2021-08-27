@@ -1,6 +1,6 @@
 import cv2
 
-from neutral.utils import showImage
+from utils import showImage
 
 
 def addOcclude1():

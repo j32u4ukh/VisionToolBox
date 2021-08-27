@@ -3,20 +3,116 @@ import math
 import cv2
 import numpy as np
 import scipy.ndimage
-import seaborn as sns
 from matplotlib import pyplot as plt
+import seaborn as sns
+from keras.utils import np_utils
 
 
-def info(_info):
-    def decorator(_func):
-        def parameters(*args, **kwargs):
-            print("[info] {}".format(_info))
-            exec_func = _func(*args, **kwargs)
-            return exec_func
+def preprocess(_data, _label):
+    _processed_data = _data.astype('float32') / 255.0
+    _onehot_label = np_utils.to_categorical(_label)
 
-        return parameters
+    return _processed_data, _onehot_label
 
-    return decorator
+
+class Cifar10:
+    def __init__(self):
+        self.label_dict = {0: "airplae",
+                           1: "automobile",
+                           2: "bird",
+                           3: "cat",
+                           4: "deer",
+                           5: "dog",
+                           6: "frog",
+                           7: "horse",
+                           8: "ship",
+                           9: "truck"}
+
+    def syuRuI(self):
+        print(self.label_dict)
+
+    def load_data(self, SyuRuI=None):
+        """讀入數據"""
+        if SyuRuI is None:
+            SyuRuI = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        x = None
+        y = None
+        for sri in SyuRuI:
+            images = "./data/Cifar10/images/%s.npy" % self.label_dict[sri]
+            images_data = np.load(images)
+            if x is None:
+                x = images_data
+            else:
+                x = np.concatenate((x, images_data), axis=0)
+
+            labels = "./data/Cifar10/labels/%s.npy" % self.label_dict[sri]
+            labels_data = np.load(labels)
+            if y is None:
+                y = labels_data
+            else:
+                y = np.concatenate((y, labels_data), axis=0)
+
+        return x, y
+
+    def shuffleData(self, x, y):
+        '''打亂數據'''
+        # 生成和數據長度相同的標籤
+        indexs = np.arange(x.shape[0])
+        # 打亂標籤
+        np.random.shuffle(indexs)
+
+        # 以相同順序存入新變數
+        return x[indexs], y[indexs]
+
+    def splitTrainTest(self, x, y, test=0.2):
+        """劃分訓練與測試數據"""
+        length = len(x)
+        x_train = x[:int((1 - test) * length)]
+        y_train = x[:int((1 - test) * length)]
+        x_test = x[-int(test * length):]
+        y_test = x[-int(test * length):]
+
+        return (x_train, y_train), (x_test, y_test)
+
+
+# for Cifar10
+def plotImagesLabelsPrediction(images, labels, prediction, label_name, idx, num=10):
+    fig = plt.gcf()
+    fig.set_size_inches(15, 15)
+    if num > 25:
+        num = 25
+
+    for i in range(num):
+        ax = plt.subplot(math.ceil(num / 5), 5, i + 1)
+        ax.imshow(images[idx + i])
+        title = str(i) + ", " + label_name[labels[i][0]]
+        if len(prediction) > 0:
+            title += "=>" + label_name[prediction[i]]
+
+        ax.set_title(title, fontsize=10)
+        ax.set_xticks([])
+        ax.set_yticks([])
+    plt.show()
+
+
+# for MNIST
+def plotLabelsAndPrediction(images, labels, prediction, idx, num=10):
+    fig = plt.gcf()
+    fig.set_size_inches(15, 15)
+    if num > 25:
+        num = 25
+
+    for i in range(num):
+        ax = plt.subplot(math.ceil(num / 5), 5, i + 1)
+        ax.imshow(np.reshape(images[idx + i], (28, 28)), cmap='binary')
+        title = "label = " + str(np.argmax(labels[idx + i]))
+        if len(prediction) > 0:
+            title += ", predict = " + str(prediction[idx + i])
+
+        ax.set_title(title, fontsize=10)
+        ax.set_xticks([])
+        ax.set_yticks([])
+    plt.show()
 
 
 def showSingleColor(r, b, g):
@@ -29,6 +125,18 @@ def showSingleColor(r, b, g):
     cv2.imshow(name, img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+
+def info(_info):
+    def decorator(_func):
+        def parameters(*args, **kwargs):
+            print("[info] {}".format(_info))
+            exec_func = _func(*args, **kwargs)
+            return exec_func
+
+        return parameters
+
+    return decorator
 
 
 def showImage(*args):
@@ -163,3 +271,9 @@ def colorfulDataFrame(df, cmap=plt.cm.Blues):
     #         繪圖數據   填充色       方塊的間隔     顯示數值
     sns.heatmap(_df, cmap=cmap, linewidths=0.1, annot=True)
     plt.show()
+
+
+if __name__ == "__main__":
+    showSingleColor(20, 40, 80)
+    showSingleColor(40, 80, 160)
+    showSingleColor(60, 120, 240)

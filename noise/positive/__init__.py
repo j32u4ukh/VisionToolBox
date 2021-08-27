@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from neutral.utils import showImage
+from utils import showImage
 
 
 # region # https://www.udemy.com/course/pythoncv/
@@ -145,48 +145,45 @@ def sobel(_img):
 
 
 if __name__ == "__main__":
-    from negative import noise
-
-
     def bilateralFilteringTest(_mean=0, _var=0.001):
         _img = cv2.imread("data/Lenna.jpg")
         # 高斯噪音
-        _noise = noise.addNoise5(_img, _mean, _var)
+        _noise = negative.addNoise5(_img, _mean, _var)
         bilateralFiltering(_noise)
 
 
     def medianBlurTest(_pepper=0.1):
         _img = cv2.imread("data/Lenna.jpg")
         # 中值模糊  對椒鹽噪聲有很好的去燥效果
-        _noise = noise.addNoise4(_img, _pepper)
+        _noise = negative.addNoise4(_img, _pepper)
         medianBlur(_noise)
 
 
     def gaussianBlurTest(_mean=0, _var=0.001):
         _img = cv2.imread("data/Lenna.jpg")
         # 高斯噪音
-        _noise = noise.addNoise5(_img, _mean, _var)
+        _noise = negative.addNoise5(_img, _mean, _var)
         gaussianBlur(_noise)
 
 
     def pyrMeanShiftFilteringTest(_mean=0, _var=0.001):
         _img = cv2.imread("data/Lenna.jpg")
         # 高斯噪音
-        _noise = noise.addNoise5(_img, _mean, _var)
+        _noise = negative.addNoise5(_img, _mean, _var)
         pyrMeanShiftFiltering(_noise)
 
 
     def fastNlMeansDenoisingTest(_mean=0, _var=0.001):
         _img = cv2.imread("data/Lenna.jpg", cv2.IMREAD_GRAYSCALE)
         # 高斯噪音
-        _noise = noise.addNoise5(_img, _mean, _var)
+        _noise = negative.addNoise5(_img, _mean, _var)
         fastNlMeansDenoising(_noise)
 
 
     def fastNlMeansDenoisingColoredTest(_mean=0, _var=0.001):
         _img = cv2.imread("data/Lenna.jpg")
         # 高斯噪音
-        _noise = noise.addNoise5(_img, _mean, _var)
+        _noise = negative.addNoise5(_img, _mean, _var)
         fastNlMeansDenoising(_noise)
 
 
@@ -218,14 +215,14 @@ if __name__ == "__main__":
     def averageFilterTest(_mean=0, _var=0.001):
         _img = cv2.imread("data/Lenna.jpg")
         # 高斯噪音
-        _noise = noise.addNoise5(_img, _mean, _var)
+        _noise = negative.addNoise5(_img, _mean, _var)
         averageFilter(_noise)
 
 
     def customBlur1Test(_mean=0, _var=0.001):
         _img = cv2.imread("data/Lenna.jpg")
         # 高斯噪音
-        _noise = noise.addNoise5(_img, _mean, _var)
+        _noise = negative.addNoise5(_img, _mean, _var)
         customBlur1(_noise)
 
 

@@ -8,11 +8,8 @@ from keras.layers import (
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 
-from OpenEyes.utils import (
-    showImage,
-    showImages,
+from utils import (
     showTrainHistory,
     plotImage,
     plotLabelsAndPrediction,
