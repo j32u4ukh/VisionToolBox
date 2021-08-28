@@ -2,8 +2,22 @@ import os
 from datetime import datetime
 import tkinter as tk
 from tkinter import filedialog
-
+from abc import ABCMeta, abstractmethod
 import cv2
+
+
+class Video(metaclass=ABCMeta):
+    @abstractmethod
+    def setKeyCode(self):
+        pass
+
+    @abstractmethod
+    def setPanel(self):
+        pass
+
+    @abstractmethod
+    def checkPanel(self):
+        pass
 
 
 class VideoPlayer:
