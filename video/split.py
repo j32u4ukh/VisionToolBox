@@ -65,11 +65,11 @@ class VideoSplitter(VideoPlayer):
 
         # 影片寫出
         file_name = datetime.now().strftime("%Y%m%d%H%M%S%f")
-        output_path = '{}/{}.mp4'.format(self.folder, file_name)
+        output_path = f'{self.folder}/{file_name}.mp4'
 
         split_buffer = f'{self.ffmpeg} -ss {start_split / self.fps} -i "{self.path}" ' \
                        f'-c copy -to {end_split / self.fps} "{output_path}"'
-        print(f"splitBuffer | 新的分割區間: {split_buffer}")
+        print(f"splitBuffer | 新的分割區間: {split_buffer}\n{self.split_buffer}")
 
         self.split_buffer.append(split_buffer)
         self.removeCurrentBuffer()
