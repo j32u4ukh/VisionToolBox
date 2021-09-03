@@ -7,27 +7,26 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torchvision
+from torch.utils import data
 import torchvision.transforms as transforms
 
-classes = ('plane', 'car', 'bird', 'cat',
-           'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
 # [0, 1] >> [-1, 1]
 transform = transforms.Compose(
-    [transforms.ToTensor(),
-     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    [
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    ]
+)
 
 
 def loadData():
-    trainset = torchvision.datasets.CIFAR10(root='data', train=True,
-                                            download=True, transform=transform)
-    train_loader = torch.utils.data.DataLoader(trainset, batch_size=4,
-                                               shuffle=True, num_workers=2)
+    trainset = torchvision.datasets.CIFAR10(root='data', train=True, download=True, transform=transform)
+    train_loader = torch.utils.data.DataLoader(trainset, batch_size=4, shuffle=True, num_workers=2)
 
-    testset = torchvision.datasets.CIFAR10(root='data', train=False,
-                                           download=True, transform=transform)
-    test_loader = torch.utils.data.DataLoader(testset, batch_size=4,
-                                              shuffle=False, num_workers=2)
+    testset = torchvision.datasets.CIFAR10(root='data', train=False, download=True, transform=transform)
+    test_loader = torch.utils.data.DataLoader(testset, batch_size=4, shuffle=False, num_workers=2)
 
     return train_loader, test_loader
 
@@ -35,7 +34,7 @@ def loadData():
 # functions to show an image
 def imshow(img):
     # [-1, 1] >> [0, 1]
-    img = img / 2 + 0.5     # unnormalize
+    img = img / 2 + 0.5  # unnormalize
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
     plt.show()
@@ -44,12 +43,14 @@ def imshow(img):
 def viewDataset(_dataset):
     # get some random training images
     dataiter = iter(_dataset)
-    images, labels = dataiter.next()
+    images, labels = next(dataiter)
 
     # show images
     imshow(torchvision.utils.make_grid(images))
+
     # print labels
     print(' '.join('%5s' % classes[labels[j]] for j in range(4)))
+
     return images
 
 
@@ -101,8 +102,7 @@ if __name__ == "__main__":
             # print statistics
             running_loss += loss.item()
             if i % 2000 == 1999:  # print every 2000 mini-batches
-                print('[%d, %5d] loss: %.3f' %
-                      (epoch + 1, i + 1, running_loss / 2000))
+                print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 2000))
                 running_loss = 0.0
 
     print('Finished Training, cost time: {}'.format(time.time() - start))
@@ -117,8 +117,7 @@ if __name__ == "__main__":
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-    print('Accuracy of the network on the 10000 test images: %d %%' % (
-            100 * correct / total))
+    print('Accuracy of the network on the 10000 test images: %d %%' % (100 * correct / total))
 
     train_loader, test_loader = loadData()
     class_correct = list(0. for i in range(10))
@@ -135,8 +134,7 @@ if __name__ == "__main__":
                 class_total[label] += 1
 
     for i in range(10):
-        print('Accuracy of %5s : %2d %%' % (
-            classes[i], 100 * class_correct[i] / class_total[i]))
+        print('Accuracy of %5s : %2d %%' % (classes[i], 100 * class_correct[i] / class_total[i]))
 
     print("=== train by gpu ===")
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -173,8 +171,7 @@ if __name__ == "__main__":
             # print statistics
             running_loss += loss.item()
             if i % 2000 == 1999:  # print every 2000 mini-batches
-                print('[%d, %5d] loss: %.3f' %
-                      (epoch + 1, i + 1, running_loss / 2000))
+                print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 2000))
                 running_loss = 0.0
 
     print('Finished Training, cost time: {}'.format(time.time() - start))
