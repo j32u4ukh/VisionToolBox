@@ -1,5 +1,5 @@
 import time
-
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -8,12 +8,13 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchvision
 from torch.utils import data
-from torchvision import transforms
+from torchvision import transforms, datasets
 
 
 class ClassificationNet(nn.Module):
     def __init__(self, n_class=10):
         super().__init__()
+        # nn.Conv2d(in_channels, out_channels, kernel_size)
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
@@ -21,14 +22,44 @@ class ClassificationNet(nn.Module):
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, n_class)
 
+    # TODO: 導入模擬數據，檢視各層的輸入輸出維度
     def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 5 * 5)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+        # x.shape: torch.Size([4, 3, 32, 32])
+        # print("x.shape:", x.shape)
+
+        # output1.shape: torch.Size([4, 6, 28, 28])
+        output1 = F.relu(self.conv1(x))
+        # print("output1.shape:", output1.shape)
+
+        # output2.shape: torch.Size([4, 6, 14, 14])
+        output2 = self.pool(output1)
+        # print("output2.shape:", output2.shape)
+
+        # output3.shape: torch.Size([4, 16, 10, 10])
+        output3 = F.relu(self.conv2(output2))
+        # print("output3.shape:", output3.shape)
+
+        # output4.shape: torch.Size([4, 16, 5, 5])
+        output4 = self.pool(output3)
+        # print("output4.shape:", output4.shape)
+
+        # output5.shape: torch.Size([4, 400])
+        output5 = output4.view(-1, 16 * 5 * 5)
+        # print("output5.shape:", output5.shape)
+
+        # output6.shape: torch.Size([4, 120])
+        output6 = F.relu(self.fc1(output5))
+        # print("output6.shape:", output6.shape)
+
+        # output7.shape: torch.Size([4, 84])
+        output7 = F.relu(self.fc2(output6))
+        # print("output7.shape:", output7.shape)
+
+        # output.shape: torch.Size([4, 2])
+        output = self.fc3(output7)
+        # print("output.shape:", output.shape)
+
+        return output
 
 
 class Classification:
@@ -72,23 +103,42 @@ class Classification:
 
         return images
 
-    def loadDatasets(self, batch_size=4, shuffle=True, num_workers=2, transform=None):
+    @staticmethod
+    def loadDataLoader(folder, batch_size=4, shuffle=True, num_workers=2, transform=None):
         if transform is None:
             # [0, 1] >> [-1, 1]
             transform = transforms.Compose(
                 [
+                    transforms.Resize((32, 32)),
                     transforms.ToTensor(),
                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
                 ]
             )
 
-        # train_data = datasets.ImageFolder(self.train_path, transform)
-        # test_data = datasets.ImageFolder(self.test_path, transform)
+        dataset = datasets.ImageFolder(folder, transform)
+        data_loader = data.DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
 
-        train_data = torchvision.datasets.CIFAR10(root='data', train=True,
-                                                  download=True, transform=transform)
-        test_data = torchvision.datasets.CIFAR10(root='data', train=False,
-                                                 download=True, transform=transform)
+        return data_loader
+
+    def loadDatasets(self, batch_size=4, shuffle=True, num_workers=2, transform=None, is_demo=False):
+        if transform is None:
+            # [0, 1] >> [-1, 1]
+            transform = transforms.Compose(
+                [
+                    transforms.Resize((32, 32)),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                ]
+            )
+
+        if is_demo:
+            train_data = torchvision.datasets.CIFAR10(root='data', train=True,
+                                                      download=True, transform=transform)
+            test_data = torchvision.datasets.CIFAR10(root='data', train=False,
+                                                     download=True, transform=transform)
+        else:
+            train_data = datasets.ImageFolder(self.train_path, transform)
+            test_data = datasets.ImageFolder(self.test_path, transform)
 
         self.train_loader = data.DataLoader(train_data, batch_size=batch_size,
                                             shuffle=shuffle, num_workers=num_workers)
@@ -98,7 +148,11 @@ class Classification:
     def train(self, EPOCH, batch_size=4, shuffle=True, num_workers=2, transform=None):
         start = time.time()
 
-        self.loadDatasets(batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, transform=transform)
+        self.train_loader = Classification.loadDataLoader(folder=self.train_path,
+                                                          batch_size=batch_size,
+                                                          shuffle=shuffle,
+                                                          num_workers=num_workers,
+                                                          transform=transform)
 
         # loop over the dataset multiple times
         for epoch in range(EPOCH):
@@ -129,8 +183,12 @@ class Classification:
 
         print('Finished Training, cost time: {}'.format(time.time() - start))
 
-    def validation(self, batch_size=4):
-
+    def validation(self, batch_size=4, shuffle=True, num_workers=2, transform=None):
+        self.test_loader = Classification.loadDataLoader(folder=self.test_path,
+                                                         batch_size=batch_size,
+                                                         shuffle=shuffle,
+                                                         num_workers=num_workers,
+                                                         transform=transform)
         class_correct = list(0. for _ in range(self.n_class))
         class_total = list(0. for _ in range(self.n_class))
 
@@ -160,8 +218,6 @@ class Classification:
 
                     class_total[label] += 1
 
-                break
-
         for i in range(self.n_class):
             print('Accuracy of %5s : %2d %%' % (self.classes[i], 100 * class_correct[i] / class_total[i]))
 
@@ -172,9 +228,25 @@ class Classification:
 
 
 if __name__ == "__main__":
-    classification = Classification(classes=['plane', 'car', 'bird', 'cat', 'deer',
-                                             'dog', 'frog', 'horse', 'ship', 'truck'],
-                                    train_path="", test_path="")
-    # classification.train(EPOCH=5, batch_size=4)
-    classification.loadDatasets(batch_size=4)
+    # classification = Classification(classes=['plane', 'car', 'bird', 'cat', 'deer',
+    #                                          'dog', 'frog', 'horse', 'ship', 'truck'],
+    #                                 train_path="", test_path="")
+
+    folder = "data/image/cat_and_dog"
+    train_path = os.path.join(folder, "train")
+    test_path = os.path.join(folder, "test")
+    classification = Classification(classes=['cat', 'dog'],
+                                    train_path=train_path, test_path=test_path)
+    classification.train(EPOCH=5, batch_size=4)
+    # classification.loadDatasets(batch_size=4)
     classification.validation(batch_size=4)
+    # data_loader = Classification.loadDataLoader(folder=test_path,
+    #                                             batch_size=4,
+    #                                             shuffle=True,
+    #                                             num_workers=2)
+    #
+    # for i, data in enumerate(data_loader, 0):
+    #     inputs, labels = data
+    #     print(inputs.shape)
+    #     print(labels.shape)
+    #     break
