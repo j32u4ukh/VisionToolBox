@@ -13,7 +13,7 @@ from tensorflow.math import (
     reduce_std as tf_std
 )
 
-from math import (
+from utils.math import (
     log,
     multiOperation
 )

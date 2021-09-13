@@ -1,8 +1,7 @@
 import cv2
 import numpy as np
 
-import math
-from utils import showImage
+from utils import showImage, math
 
 
 # region https://www.cnblogs.com/super-jjboom/p/9993431.html

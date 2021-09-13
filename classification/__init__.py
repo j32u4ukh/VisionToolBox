@@ -1,5 +1,7 @@
-import time
+import math
 import os
+import time
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -11,14 +13,27 @@ from torch.utils import data
 from torchvision import transforms, datasets
 
 
+def cnnOutputSize(size, kernel, padding=0, stride=1):
+    return math.floor((size + 2 * padding - kernel) / stride) + 1
+
+
 class ClassificationNet(nn.Module):
-    def __init__(self, n_class=10):
+    def __init__(self, n_class=10, width=32, height=32):
         super().__init__()
         # nn.Conv2d(in_channels, out_channels, kernel_size)
         self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
+        out1 = (cnnOutputSize(width, 5), cnnOutputSize(height, 5))
+
+        self.pool1 = nn.MaxPool2d(2, 2)
+        out2 = (math.floor(out1[0] / 2), math.floor(out1[1] / 2))
+
         self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
+        out3 = (cnnOutputSize(out2[0], 5), cnnOutputSize(out2[1], 5))
+
+        self.pool2 = nn.MaxPool2d(2, 2)
+        out4 = (math.floor(out3[0] / 2), math.floor(out3[1] / 2))
+
+        self.fc1 = nn.Linear(16 * out4[0] * out4[1], 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, n_class)
 
@@ -32,7 +47,7 @@ class ClassificationNet(nn.Module):
         # print("output1.shape:", output1.shape)
 
         # output2.shape: torch.Size([4, 6, 14, 14])
-        output2 = self.pool(output1)
+        output2 = self.pool1(output1)
         # print("output2.shape:", output2.shape)
 
         # output3.shape: torch.Size([4, 16, 10, 10])
@@ -40,7 +55,7 @@ class ClassificationNet(nn.Module):
         # print("output3.shape:", output3.shape)
 
         # output4.shape: torch.Size([4, 16, 5, 5])
-        output4 = self.pool(output3)
+        output4 = self.pool2(output3)
         # print("output4.shape:", output4.shape)
 
         # output5.shape: torch.Size([4, 400])
@@ -240,13 +255,19 @@ if __name__ == "__main__":
     classification.train(EPOCH=5, batch_size=4)
     # classification.loadDatasets(batch_size=4)
     classification.validation(batch_size=4)
-    # data_loader = Classification.loadDataLoader(folder=test_path,
-    #                                             batch_size=4,
-    #                                             shuffle=True,
-    #                                             num_workers=2)
-    #
-    # for i, data in enumerate(data_loader, 0):
-    #     inputs, labels = data
-    #     print(inputs.shape)
-    #     print(labels.shape)
-    #     break
+
+    model = ClassificationNet(n_class=2)
+    PATH = "data/model/classification.pth"
+
+    print("Model's state_dict:")
+    for param_tensor in model.state_dict():
+        print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+
+    # Save:
+    torch.save(model.state_dict(), PATH)
+
+    # Load:
+    model = ClassificationNet(n_class=2)
+    model.load_state_dict(torch.load(PATH))
+    model.eval()
+
