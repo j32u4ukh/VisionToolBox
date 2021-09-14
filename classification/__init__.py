@@ -1,7 +1,7 @@
 import math
 import os
 import time
-
+import shutil
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -78,22 +78,23 @@ class ClassificationNet(nn.Module):
 
 
 class Classification:
-    def __init__(self, classes: list, train_path: str, test_path: str):
+    def __init__(self, classes: list, train_path: str, test_path: str, save_path: str):
         self.classes = classes
         self.n_class = len(classes)
 
         self.train_path = train_path
         self.test_path = test_path
+        self.save_path = save_path
 
         self.train_loader = None
         self.test_loader = None
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        self.net = ClassificationNet(n_class=self.n_class)
-        self.net = self.net.to(self.device)
+        self.model = ClassificationNet(n_class=self.n_class)
+        self.model = self.model.to(self.device)
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.SGD(self.net.parameters(), lr=0.001, momentum=0.9)
+        self.optimizer = optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
 
     # functions to show an image
     @staticmethod
@@ -160,7 +161,7 @@ class Classification:
         self.test_loader = data.DataLoader(test_data, batch_size=batch_size,
                                            shuffle=shuffle, num_workers=num_workers)
 
-    def train(self, EPOCH, batch_size=4, shuffle=True, num_workers=2, transform=None):
+    def train(self, EPOCH, batch_size=4, shuffle=True, num_workers=2, transform=None, num=2000):
         start = time.time()
 
         self.train_loader = Classification.loadDataLoader(folder=self.train_path,
@@ -184,7 +185,7 @@ class Classification:
                 self.optimizer.zero_grad()
 
                 # forward + backward + optimize
-                outputs = self.net(inputs)
+                outputs = self.model(inputs)
                 loss = self.criterion(outputs, labels)
                 loss.backward()
                 self.optimizer.step()
@@ -192,8 +193,9 @@ class Classification:
                 # print statistics
                 running_loss += loss.item()
 
-                if i % 2000 == 1999:  # print every 2000 mini-batches
-                    print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 2000))
+                # print every num mini-batches
+                if i % num == (num - 1):
+                    print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / num))
                     running_loss = 0.0
 
         print('Finished Training, cost time: {}'.format(time.time() - start))
@@ -218,7 +220,7 @@ class Classification:
                 # cpu to gpu
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
 
-                outputs = self.net(inputs)
+                outputs = self.model(inputs)
                 _, predicted = torch.max(outputs, 1)
                 c = (predicted == labels).squeeze()
 
@@ -236,38 +238,81 @@ class Classification:
         for i in range(self.n_class):
             print('Accuracy of %5s : %2d %%' % (self.classes[i], 100 * class_correct[i] / class_total[i]))
 
-        print(f"Accuracy of the network on the {total} test images: {100 * correct / total}%")
+        print(f"Accuracy of the network on the {total} test images: {100 * correct / total} %")
 
-    def test(self, img):
-        pass
+    def test(self, batch_size=4, shuffle=True, num_workers=2, transform=None):
+        self.test_loader = Classification.loadDataLoader(folder=self.test_path,
+                                                         batch_size=batch_size,
+                                                         shuffle=shuffle,
+                                                         num_workers=num_workers,
+                                                         transform=transform)
+        class_correct = list(0. for _ in range(self.n_class))
+        class_total = list(0. for _ in range(self.n_class))
+
+        # # 使用 try 建立目錄
+        # try:
+        #     os.makedirs(folder)
+        # # 檔案已存在的例外處理
+        # except FileExistsError:
+        #     print("檔案已存在。")
+
+        correct = 0
+        total = 0
+
+        with torch.no_grad():
+            for data in self.test_loader:
+                # get the inputs
+                inputs, labels = data
+
+                # cpu to gpu
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
+
+                outputs = self.model(inputs)
+                _, predicted = torch.max(outputs, 1)
+                c = (predicted == labels).squeeze()
+
+                total += labels.size(0)
+
+                for i in range(batch_size):
+                    label = labels[i]
+
+                    # shutil.move(source, destination)
+
+                    # 取得路徑下的檔案名稱(含副檔名 -> classification.pth)
+                    # os.path.basename("data/model/classification.pth")
+
+                    if c[i].item():
+                        class_correct[label] += 1
+                        correct += 1
+
+                    class_total[label] += 1
+
+        for i in range(self.n_class):
+            print('Accuracy of %5s : %2d %%' % (self.classes[i], 100 * class_correct[i] / class_total[i]))
+
+        print(f"Accuracy of the network on the {total} test images: {100 * correct / total} %")
+
+    def save(self):
+        torch.save(self.model.state_dict(), self.save_path)
+
+    def load(self):
+        self.model = ClassificationNet(n_class=self.n_class)
+        self.model.load_state_dict(torch.load(self.save_path))
+        self.model = self.model.to(self.device)
+
+        self.optimizer = optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
+        self.model.eval()
 
 
 if __name__ == "__main__":
-    # classification = Classification(classes=['plane', 'car', 'bird', 'cat', 'deer',
-    #                                          'dog', 'frog', 'horse', 'ship', 'truck'],
-    #                                 train_path="", test_path="")
-
     folder = "data/image/cat_and_dog"
     train_path = os.path.join(folder, "train")
     test_path = os.path.join(folder, "test")
     classification = Classification(classes=['cat', 'dog'],
-                                    train_path=train_path, test_path=test_path)
-    classification.train(EPOCH=5, batch_size=4)
-    # classification.loadDatasets(batch_size=4)
-    classification.validation(batch_size=4)
-
-    model = ClassificationNet(n_class=2)
-    PATH = "data/model/classification.pth"
-
-    print("Model's state_dict:")
-    for param_tensor in model.state_dict():
-        print(param_tensor, "\t", model.state_dict()[param_tensor].size())
-
-    # Save:
-    torch.save(model.state_dict(), PATH)
-
-    # Load:
-    model = ClassificationNet(n_class=2)
-    model.load_state_dict(torch.load(PATH))
-    model.eval()
+                                    train_path=train_path,
+                                    test_path=test_path,
+                                    save_path="data/model/classification.pth")
+    classification.train(EPOCH=5, batch_size=5, num=500)
+    classification.save()
+    classification.validation(batch_size=5)
 
