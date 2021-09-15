@@ -11,6 +11,9 @@ import torch.optim as optim
 import torchvision
 from torch.utils import data
 from torchvision import transforms, datasets
+from PIL import Image
+import cv2
+import matplotlib.cm
 
 
 def cnnOutputSize(size, kernel, padding=0, stride=1):
@@ -78,15 +81,16 @@ class ClassificationNet(nn.Module):
 
 
 class Classification:
-    def __init__(self, classes: list, train_path: str, test_path: str, save_path: str):
+    def __init__(self, classes: list, train_path: str, validation_path: str, save_path: str):
         self.classes = classes
         self.n_class = len(classes)
 
         self.train_path = train_path
-        self.test_path = test_path
+        self.validation_path = validation_path
         self.save_path = save_path
 
         self.train_loader = None
+        self.validation_loader = None
         self.test_loader = None
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -150,16 +154,16 @@ class Classification:
         if is_demo:
             train_data = torchvision.datasets.CIFAR10(root='data', train=True,
                                                       download=True, transform=transform)
-            test_data = torchvision.datasets.CIFAR10(root='data', train=False,
-                                                     download=True, transform=transform)
+            validation_data = torchvision.datasets.CIFAR10(root='data', train=False,
+                                                           download=True, transform=transform)
         else:
             train_data = datasets.ImageFolder(self.train_path, transform)
-            test_data = datasets.ImageFolder(self.test_path, transform)
+            validation_data = datasets.ImageFolder(self.validation_path, transform)
 
         self.train_loader = data.DataLoader(train_data, batch_size=batch_size,
                                             shuffle=shuffle, num_workers=num_workers)
-        self.test_loader = data.DataLoader(test_data, batch_size=batch_size,
-                                           shuffle=shuffle, num_workers=num_workers)
+        self.validation_loader = data.DataLoader(validation_data, batch_size=batch_size,
+                                                 shuffle=shuffle, num_workers=num_workers)
 
     def train(self, EPOCH, batch_size=4, shuffle=True, num_workers=2, transform=None, num=2000):
         start = time.time()
@@ -201,11 +205,11 @@ class Classification:
         print('Finished Training, cost time: {}'.format(time.time() - start))
 
     def validation(self, batch_size=4, shuffle=True, num_workers=2, transform=None):
-        self.test_loader = Classification.loadDataLoader(folder=self.test_path,
-                                                         batch_size=batch_size,
-                                                         shuffle=shuffle,
-                                                         num_workers=num_workers,
-                                                         transform=transform)
+        self.validation_loader = Classification.loadDataLoader(folder=self.validation_path,
+                                                               batch_size=batch_size,
+                                                               shuffle=shuffle,
+                                                               num_workers=num_workers,
+                                                               transform=transform)
         class_correct = list(0. for _ in range(self.n_class))
         class_total = list(0. for _ in range(self.n_class))
 
@@ -213,7 +217,7 @@ class Classification:
         total = 0
 
         with torch.no_grad():
-            for data in self.test_loader:
+            for data in self.validation_loader:
                 # get the inputs
                 inputs, labels = data
 
@@ -238,59 +242,62 @@ class Classification:
         for i in range(self.n_class):
             print('Accuracy of %5s : %2d %%' % (self.classes[i], 100 * class_correct[i] / class_total[i]))
 
-        print(f"Accuracy of the network on the {total} test images: {100 * correct / total} %")
+        print(f"Accuracy of the network on the {total} validation images: {100 * correct / total} %")
 
-    def test(self, batch_size=4, shuffle=True, num_workers=2, transform=None):
-        self.test_loader = Classification.loadDataLoader(folder=self.test_path,
-                                                         batch_size=batch_size,
-                                                         shuffle=shuffle,
-                                                         num_workers=num_workers,
-                                                         transform=transform)
-        class_correct = list(0. for _ in range(self.n_class))
-        class_total = list(0. for _ in range(self.n_class))
+    def test(self, folder=""):
+        """
+        參考: https://blog.csdn.net/heiheiya/article/details/103031300
 
-        # # 使用 try 建立目錄
-        # try:
-        #     os.makedirs(folder)
-        # # 檔案已存在的例外處理
-        # except FileExistsError:
-        #     print("檔案已存在。")
+        :param folder:
+        :return:
+        """
+        transform = transforms.Compose(
+            [
+                transforms.Resize((32, 32)),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            ]
+        )
 
-        correct = 0
-        total = 0
+        files = os.listdir(folder)
+
+        for cls in self.classes:
+            new_folder = os.path.join(folder, cls)
+            # 使用 try 建立目錄
+            try:
+                os.makedirs(new_folder)
+
+            # 檔案已存在的例外處理
+            except FileExistsError:
+                print(f"{new_folder} 已存在。")
 
         with torch.no_grad():
-            for data in self.test_loader:
-                # get the inputs
-                inputs, labels = data
+            n_file = len(files)
 
-                # cpu to gpu
-                inputs, labels = inputs.to(self.device), labels.to(self.device)
+            for idx, file in enumerate(files):
+                path = os.path.join(folder, file)
 
-                outputs = self.model(inputs)
-                _, predicted = torch.max(outputs, 1)
-                c = (predicted == labels).squeeze()
+                if os.path.isdir(path):
+                    continue
 
-                total += labels.size(0)
+                img = Image.open(path)
+                img = transform(img).to(self.device).view(1, 3, 32, 32)
 
-                for i in range(batch_size):
-                    label = labels[i]
+                output = self.model(img)
+                ps = torch.exp(output)
+                _, predict = ps.topk(1, dim=1)
+                cls = predict.cpu().numpy()[0][0]
+                class_name = self.classes[cls]
 
-                    # shutil.move(source, destination)
+                # os.path.basename: 取得路徑下的檔案名稱(含副檔名 -> classification.pth)
+                destination = os.path.join(folder, class_name, file)
+                shutil.move(path, destination)
 
-                    # 取得路徑下的檔案名稱(含副檔名 -> classification.pth)
-                    # os.path.basename("data/model/classification.pth")
+                rate = (idx + 1) / n_file * 100
+                process = int(rate / 5)
+                process_bar = "=" * process
 
-                    if c[i].item():
-                        class_correct[label] += 1
-                        correct += 1
-
-                    class_total[label] += 1
-
-        for i in range(self.n_class):
-            print('Accuracy of %5s : %2d %%' % (self.classes[i], 100 * class_correct[i] / class_total[i]))
-
-        print(f"Accuracy of the network on the {total} test images: {100 * correct / total} %")
+                print("{:10s}{:.2f}%".format(process_bar, rate), end="\r")
 
     def save(self):
         torch.save(self.model.state_dict(), self.save_path)
@@ -307,12 +314,13 @@ class Classification:
 if __name__ == "__main__":
     folder = "data/image/cat_and_dog"
     train_path = os.path.join(folder, "train")
-    test_path = os.path.join(folder, "test")
+    validation_path = os.path.join(folder, "test")
     classification = Classification(classes=['cat', 'dog'],
                                     train_path=train_path,
-                                    test_path=test_path,
+                                    validation_path=validation_path,
                                     save_path="data/model/classification.pth")
-    classification.train(EPOCH=5, batch_size=5, num=500)
-    classification.save()
-    classification.validation(batch_size=5)
-
+    # classification.train(EPOCH=5, batch_size=5, num=500)
+    # classification.save()
+    # classification.validation(batch_size=5)
+    classification.load()
+    classification.test("data/image/cat_and_dog/test")
