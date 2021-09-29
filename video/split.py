@@ -88,61 +88,6 @@ class VideoSplitter(VideoPlayer):
         cmd = " && ".join(self.split_buffer)
         subprocess.call(cmd, shell=True)
 
-    def split2(self):
-        n_split = len(self.split_buffer)
-
-        if n_split == 0:
-            return
-
-        self.index = 0
-        self.cap = cv2.VideoCapture(self.path)
-
-        self.s_index = 0
-        start_index, end_index = self.split_buffer[self.s_index]
-        self.writer, output_path = getVideoWriter(cap=self.cap, folder=self.folder)
-
-        # 開始計時
-        time_start = time.time()
-
-        while self.cap.isOpened():
-            _ret, _frame = self.cap.read()
-
-            if not _ret:
-                break
-            else:
-                if self.index <= end_index:
-
-                    if start_index <= self.index:
-                        # 寫入影格
-                        self.writer.write(_frame)
-
-                    self.index += 1
-                else:
-                    print("[Done]", output_path)
-
-                    # 釋放所有資源
-                    self.writer.release()
-
-                    self.s_index += 1
-
-                    if self.s_index < n_split:
-                        start_index, end_index = self.split_buffer[self.s_index]
-                        self.writer, output_path = getVideoWriter(cap=self.cap, folder=self.folder)
-                    else:
-                        break
-
-        # 結束計時
-        time_end = time.time()
-
-        # 釋放所有資源
-        print("[Done]", output_path)
-        self.cap.release()
-        self.writer.release()
-
-        # 執行所花時間
-        time_cost = time_end - time_start
-        print('time cost', time_cost, 's')
-
 
 def getVideoWriter(cap, folder="data/video", file_name: str = None, c1='m', c2='p', c3='4', c4='v'):
     # 確保資料夾存在
@@ -198,7 +143,14 @@ def splitVideo2Image(_input_path, _output_path, _is_gray=False):
 
 
 if __name__ == "__main__":
-    vs = VideoSplitter(ffmpeg=r"D:\Programing\FFMPEG\bin\ffmpeg")
+    folder = "data/video/pekora/20190804"
+
+    if not os.path.exists(folder):
+        os.mkdir(folder)
+        os.mkdir(os.path.join(folder, "True"))
+        os.mkdir(os.path.join(folder, "False"))
+
+    vs = VideoSplitter(ffmpeg=r"D:\Programing\FFMPEG\bin\ffmpeg", folder=folder)
     vs.openDialog()
     vs.play(use_panel=True)
     vs.split()
